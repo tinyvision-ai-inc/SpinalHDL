@@ -33,6 +33,7 @@ case class PipelinedMemoryBusCmd(config : PipelinedMemoryBusConfig) extends Bund
 
 case class PipelinedMemoryBusRsp(config : PipelinedMemoryBusConfig) extends Bundle{
   val data = Bits(config.dataWidth bits)
+  val error = Bool()
 }
 
 object PipelinedMemoryBus{
@@ -59,6 +60,7 @@ case class PipelinedMemoryBus(config : PipelinedMemoryBusConfig) extends Bundle 
     m.cmd.ready := s.cmd.ready
     m.rsp.valid := s.rsp.valid
     m.rsp.data := s.rsp.data
+    m.rsp.error := s.rsp.error
   }
   def >>(s : PipelinedMemoryBus) : Unit = s << this
 
@@ -155,6 +157,7 @@ class PipelinedMemoryBusSlaveFactory(bus: PipelinedMemoryBus) extends BusSlaveFa
 
   bus.rsp.valid := readAtRsp.valid
   bus.rsp.data := readAtRsp.payload
+  bus.rsp.error := False
 
   readAtCmd.valid := doRead
   readAtCmd.payload := 0
@@ -366,6 +369,8 @@ case class PipelinedMemoryBusToApbBridge(apb3Config: Apb3Config, pipelineBridge 
 
   pipelinedMemoryBusStage.rsp.valid := False
   pipelinedMemoryBusStage.rsp.data  := io.apb.PRDATA
+  // Drive rsp.error always (new PipelinedMemoryBusRsp field); forward APB PSLVERROR when present.
+  pipelinedMemoryBusStage.rsp.error := (if (io.apb.PSLVERROR != null) io.apb.PSLVERROR else False)
   when(!state) {
     state := pipelinedMemoryBusStage.cmd.valid
   } otherwise {
