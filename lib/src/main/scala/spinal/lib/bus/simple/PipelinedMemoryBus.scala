@@ -221,8 +221,12 @@ case class PipelinedMemoryBusDecoder(busConfig : PipelinedMemoryBusConfig, mappi
     val noHit = if (!hasDefault) !hits.orR else False
     io.input.cmd.ready := (hits, io.outputs).zipped.map(_ && _.cmd.ready).orR || noHit
 
+    /* Pending counts reads only. Write-error rsps (miss / WB ERR) also pulse
+     * rsp.valid; subtracting those with counter==0 underflows to pendingMax and
+     * wedges cmd.ready forever. Only debit when a read is actually outstanding. */
     val rspPendingCounter = Reg(UInt(log2Up(pendingMax + 1) bits)) init (0)
-    rspPendingCounter := rspPendingCounter + U(io.input.cmd.fire && !io.input.cmd.write) - U(io.input.rsp.valid)
+    val rspDebit = io.input.rsp.valid && (rspPendingCounter =/= 0)
+    rspPendingCounter := rspPendingCounter + U(io.input.cmd.fire && !io.input.cmd.write) - U(rspDebit)
     val rspHits = RegNextWhen(hits, io.input.cmd.fire)
     val rspPending = rspPendingCounter =/= 0
     val rspNoHit = if (!hasDefault) !rspHits.orR else False
