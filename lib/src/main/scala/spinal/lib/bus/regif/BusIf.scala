@@ -150,7 +150,11 @@ trait BusIf extends BusIfBase {
 
   component.addPrePopTask(() => {
     this.readGenerator()
-    if (withSecFireWall) this.writeErrorGenerator()
+    /* Always drive reg_wrerr. WishboneBusInterface / PipelinedMemoryBusInterface
+     * sample it into ERR / rsp.error; SecFireWall and accessDefaultError (hole
+     * writes) need the generator; call sites that never set those flags still
+     * force the lazy Reg via `|| reg_wrerr` and must not leave it unassigned. */
+    this.writeErrorGenerator()
   })
 
   def regPart(name: String)(block: => Unit) = {
